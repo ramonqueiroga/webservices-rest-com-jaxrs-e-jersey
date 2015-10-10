@@ -17,10 +17,12 @@ import org.junit.Test;
 import br.com.alura.loja.modelo.Carrinho;
 import br.com.alura.loja.modelo.Produto;
 
-public class ClientPostTest {
-	
+import com.thoughtworks.xstream.XStream;
+
+public class CarrinhoTest {
+
 	private HttpServer server;
-	
+
 	@Before
 	public void startaServidor() {
 		server = Servidor.inicializaServidor();
@@ -32,6 +34,18 @@ public class ClientPostTest {
 	}
 
 	@Test
+	public void testaQueAConexaoComOServidorFunciona() {
+
+		Client cliente = ClientBuilder.newClient();
+		WebTarget target = cliente.target("http://localhost:8080");
+		//passando parametros para a request testando com query param
+//		String conteudo = target.path("/carrinhos").queryParam("id", 1).request().get(String.class);
+		String conteudo = target.path("/carrinhos/1").request().get(String.class);
+		Carrinho carrinho = ((Carrinho) new XStream().fromXML(conteudo));
+		Assert.assertEquals(carrinho.getRua(), "Rua Vergueiro 3185, 8 andar");
+	}
+	
+	@Test
 	public void testaQueOPostFunciona(){
 		
 		Client client = ClientBuilder.newClient();
@@ -41,15 +55,24 @@ public class ClientPostTest {
 		carrinho.adiciona(new Produto(314L, "Tablet", 999, 1));
 		carrinho.setCidade("São Bernardo do Campo");
 		carrinho.setRua("Rua Helena Aparecida Secol");
-		
 		String xml = carrinho.toXML();
 		
 		Entity<String> entity = Entity.entity(xml, MediaType.APPLICATION_XML);
-		
 		Response response = target.path("/carrinhos").request().post(entity);
 		
 		Assert.assertEquals(201, response.getStatus());
 		
+		String location = response.getHeaderString("Location");
+		String carrinhoAdicionado = client.target(location).request().get(String.class);
+		Assert.assertTrue(carrinhoAdicionado.contains("Tablet"));
+	}	
+	
+	@Test
+	public void testaRemocaoDeProdutoNoCarrinho(){
+		Client client = ClientBuilder.newClient();
+		WebTarget target = client.target("http://localhost:8080");
+		Response response = target.path("/carrinhos/1/produtos/6237").request().delete();
+		Assert.assertEquals(200, response.getStatus());
 	}
 	
 }
